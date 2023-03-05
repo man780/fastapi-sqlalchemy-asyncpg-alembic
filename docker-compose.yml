@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  app:
+    image: fastapi-sqlalchemy-asyncpg_app
+    build: .
+    env_file:
+      - .env
+      - .secrets
+    command: bash -c "
+      alembic upgrade head && uvicorn app.main:app
+      --host 0.0.0.0 --port 8080
+      --lifespan=on --use-colors --loop uvloop --http httptools
+      --reload --log-level debug
+      "
+    volumes:
+      - ./app:/home/code/app
+      - ./tests:/home/code/tests
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  db:
+    image: fastapi-sqlalchemy-asyncpg_db
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    volumes:
+      - fastapi_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+      - .secrets
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=${SQL_USER}
+    healthcheck:
+      test:
+        [
+            "CMD-SHELL", "pg_isready -d $SQL_DB -U $SQL_USER"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  fastapi_postgres_data: {}
