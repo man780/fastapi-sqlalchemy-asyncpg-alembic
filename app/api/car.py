@@ -52,10 +52,8 @@ async def find_car(
     """Get car by title"""
     return await Car.find(db_session, title)
 
-@router.get("/all/{title}", response_model=list)
-async def all(
-    db_session: AsyncSession = Depends(get_db),
-):
+@router.get("car_list", response_model=List[CarResponse])
+async def car_list(db_session: AsyncSession = Depends(get_db)):
     """Get cars list"""
     return await Car.all(db_session)
 

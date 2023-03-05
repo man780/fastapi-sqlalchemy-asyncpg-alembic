@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -24,6 +25,8 @@ class CarResponse(BaseModel):
     id: int = Field(title="Id", description="")
     title: str = Field(title="", description="")
     content: str = Field(title="", description="")
+    active: bool = Field(title="", description="")
+    created: datetime = Field(title="", description="")
 
     class Config:
         """Config"""
@@ -31,7 +34,7 @@ class CarResponse(BaseModel):
         schema_extra = {
             "example": {
                 "id": 1,
-                "title": "Name for Some Stuff",
-                "content": "Some Stuff Description",
+                "title": "Name for Some Car",
+                "content": "Some Car Description",
             }
         }
