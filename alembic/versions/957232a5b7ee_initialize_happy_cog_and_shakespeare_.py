@@ -46,7 +46,7 @@ def upgrade():
         sa.Column("transmission", sa.String(), nullable=True, default=""),
         sa.Column("body_style", sa.String(), nullable=True, default=""),
         sa.Column("engine_size", sa.Integer(), nullable=True, default=0),
-        sa.Column("seets", sa.Integer(), nullable=True, default=0),
+        sa.Column("seats", sa.Integer(), nullable=True, default=0),
         sa.Column("hero_image", sa.String(), nullable=True, default=""),
         sa.Column("date", sa.DateTime(), default=datetime.now()),
         sa.Column("car_type", sa.String(), nullable=True, default=""),
@@ -59,7 +59,6 @@ def upgrade():
         sa.Column("created", sa.DateTime(), default=datetime.now()),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("id"),
-        sa.UniqueConstraint("title"),
         schema="core",
     )
     op.create_table(

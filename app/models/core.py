@@ -23,8 +23,8 @@ class Car(Base):
     id = Column(Integer, autoincrement=True)
     title = Column(String, nullable=False)
     content = Column(String, nullable=True)
-    ad_id = Column(UUID(as_uuid=True), unique=True)
-    advert_id = Column(UUID(as_uuid=True), unique=True)
+    ad_id = Column(UUID(as_uuid=True))
+    advert_id = Column(UUID(as_uuid=True))
     url = Column(String, nullable=False)
     price = Column(Float, nullable=False, default=0)
     make = Column(String, nullable=False, default="")
@@ -39,7 +39,7 @@ class Car(Base):
     transmission = Column(String, nullable=False, default="")
     body_style = Column(String, nullable=False, default="")
     engine_size = Column(Integer, nullable=False, default=0)
-    seets = Column(Integer, nullable=False, default=0)
+    seats = Column(Integer, nullable=False, default=0)
     hero_image = Column(String, nullable=False, default="")
     date = Column(DateTime, default=datetime.now())
     car_type = Column(String, nullable=False, default="")
@@ -55,16 +55,20 @@ class Car(Base):
     car_pictures: Mapped[List["CarPicture"]] = relationship("CarPicture", back_populates="car")
 
     @classmethod
-    async def find(cls, db_session: AsyncSession, title: str):
+    async def find(cls, db_session: AsyncSession, title: str = None, id: int = None):
         """
 
         :param db_session:
         :param title:
         :return:
         """
-        stmt = select(cls).where(cls.title == title)
+        if title:
+            stmt = select(cls).where(cls.title == title)
+        else:
+            stmt = select(cls).where(cls.id == id)
         result = await db_session.execute(stmt)
         instance = result.scalars().first()
+        print(instance)
         if instance is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -74,13 +78,13 @@ class Car(Base):
             return instance
 
     @classmethod
-    async def all(cls, db_session: AsyncSession):
+    async def all(cls, db_session: AsyncSession, limit: int = 10, offset: int = 0):
         """
         
         :param db_session:
         :return:
         """
-        stmt = select(cls).where(cls.active == True)
+        stmt = select(cls).where(cls.active == True).offset(offset).limit(limit).order_by(cls.date.desc())
         result = await db_session.execute(stmt)
         instance = result.scalars().all()
         if instance is None:
@@ -101,7 +105,7 @@ class CarPicture(Base):
     )
     id: Mapped[int] = Column(Integer, unique=True, primary_key=True, autoincrement=True)
     car_id: Mapped[int] = Column(ForeignKey("core.car.id"), nullable=False)
-    url: str = Column(String, nullable=False, unique=True)
+    url: str = Column(String, nullable=False)
     active: bool = Column(Boolean, nullable=True, default=True)
 
     car: Mapped["Car"] = relationship("Car", back_populates="car_pictures")
