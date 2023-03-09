@@ -8,6 +8,7 @@ class CarPictureSchema(BaseModel):
     """Car Picture Schema"""
     url: str = Field(title="", description="",)
     car_id: str = Field(title="", description="",)
+    active: bool = Field(title="", description="",)
 
     class Config:
         """Config"""
@@ -16,22 +17,24 @@ class CarPictureSchema(BaseModel):
             "example": {
                 "url": "Picture URL for ad",
                 "car_id": 1,
+                "active": True
             }
         }
 
 
 class CarPictureResponse(BaseModel):
     """Car picturу response schema"""
-    # id: int = Field(title="Id", description="")
+    id: int = Field(title="Id", description="")
     url: str = Field(title="", description="")
-    # active: bool = Field(title="", description="")
+    active: bool = Field(title="", description="")
 
     class Config:
         """Config"""
         orm_mode = True
         schema_extra = {
             "example": {
-                # "id": 1,
+                "id": 1,
                 "url": "Title for ad",
+                "active": True
             }
         }

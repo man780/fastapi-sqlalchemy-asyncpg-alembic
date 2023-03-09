@@ -1,15 +1,13 @@
 import os
-import time
-from typing import List
 from datetime import datetime
 import xml.etree.ElementTree as ET
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.core import Car, CarPicture
-from app.schemas.car import CarResponse, CarSchema
+from app.schemas.car import CarResponse, CarSchema, CarDetailResponse, PageResponse
 from app.utils import get_logger
 
 router = APIRouter(prefix="/v1/car", tags=["Cars"])
@@ -169,7 +167,7 @@ async def create_car(
     return car
 
 
-@router.get("/{title}", response_model=CarResponse)
+@router.get("/{title}", response_model=CarDetailResponse)
 async def find_car(
     title: str,
     db_session: AsyncSession = Depends(get_db),
@@ -178,29 +176,33 @@ async def find_car(
     return await Car.find(db_session, title=title)
 
 
-@router.get("/get/{id}", response_model=CarResponse)
-async def find_car_by_id(
+@router.get("/get/{id}", response_model=CarDetailResponse)
+async def find_ad_by_id(
     id: int,
     db_session: AsyncSession = Depends(get_db),
 ):
     """Get car by title"""
     return await Car.find(db_session, id=id)
 
-@router.get("/list/", response_model=list[CarResponse])
-async def car_list(
+@router.get("/list/", response_model=PageResponse)
+async def ads_list(
     limit: int = 10,
-    offset: int = 0,
+    page: int = 1,
+    columns: str = Query(None, alias="columns"),
+    sort: str = Query(None, alias="sort"),
+    filter: str = Query(None, alias="filter"),
     db_session: AsyncSession = Depends(get_db)
 ):
     """Get cars list"""
-    return await Car.all(db_session, limit=limit, offset=offset)
+    result = await Car.all(db_session, limit=limit, page=page, sort=sort, filter=filter)
+    return result
 
 
-@router.delete("/{title}")
-async def delete_car(title: str, db_session: AsyncSession = Depends(get_db)):
-    """Delete car"""
-    car = await Car.find(db_session, title)
-    return await Car.delete(car, db_session)
+# @router.delete("/{title}")
+# async def delete_car(title: str, db_session: AsyncSession = Depends(get_db)):
+    # """Delete car"""
+    # car = await Car.find(db_session, title)
+    # return await Car.delete(car, db_session)
 
 
 @router.patch("/{title}", response_model=CarResponse)

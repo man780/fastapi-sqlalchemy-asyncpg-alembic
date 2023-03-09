@@ -1,16 +1,17 @@
-import uuid
+import math
 from datetime import datetime
 from typing import List
 
 from fastapi import HTTPException, status
 from sqlalchemy import (
-    Column, String, select, Integer, Boolean, DateTime, Float, ForeignKey, PrimaryKeyConstraint
+    Column, String, select, Integer, Boolean, DateTime, Float, ForeignKey, PrimaryKeyConstraint, func
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship, Mapped
 
 from app.models.base import Base
+from app.schemas.car import PageResponse
 
 
 class Car(Base):
@@ -52,7 +53,7 @@ class Car(Base):
     active = Column(Boolean, nullable=True, default=True)
     created = Column(DateTime, default=datetime.now())
 
-    car_pictures: Mapped[List["CarPicture"]] = relationship("CarPicture", back_populates="car")
+    car_pictures: Mapped[List["CarPicture"]] = relationship("CarPicture", back_populates="car", lazy='selectin')
 
     @classmethod
     async def find(cls, db_session: AsyncSession, title: str = None, id: int = None):
@@ -78,22 +79,46 @@ class Car(Base):
             return instance
 
     @classmethod
-    async def all(cls, db_session: AsyncSession, limit: int = 10, offset: int = 0):
+    async def all(
+        cls, db_session: AsyncSession,
+        limit: int = 10,
+        page: int = 1,
+        columns: str = None,
+        sort: str = None,
+        filter: str = None
+    ):
         """
         
         :param db_session:
         :return:
         """
-        stmt = select(cls).where(cls.active == True).offset(offset).limit(limit).order_by(cls.date.desc())
+        offset_page: int = (page - 1 )
+        offset: int = offset_page * limit
+        stmt = select(cls).where(cls.active == True)
+        stmt = stmt.offset(offset).limit(limit).order_by(cls.date.desc())
         result = await db_session.execute(stmt)
         instance = result.scalars().all()
+
+        # count query
+        count_query = select(func.count(1)).select_from(select(cls).where(cls.active == True))
+        # total record
+        total_record = (await db_session.execute(count_query)).scalar() or 0
+        # total page
+        total_page = math.ceil(total_record / limit)
+
         if instance is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"Not found": "Data not found"},
             )
         else:
-            return instance
+            return PageResponse(
+                content=instance,
+                page_number=page,
+                page_size=limit,
+                total_pages=total_page,
+                total_record=total_record,
+            )
 
 
 class CarPicture(Base):
