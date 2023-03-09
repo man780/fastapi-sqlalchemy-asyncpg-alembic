@@ -12,6 +12,7 @@ from sqlalchemy.orm import relationship, Mapped
 
 from app.models.base import Base
 from app.schemas.car import PageResponse
+from app.utils import filter_cars
 
 
 class Car(Base):
@@ -116,6 +117,47 @@ class Car(Base):
                 content=instance,
                 page_number=page,
                 page_size=limit,
+                total_pages=total_page,
+                total_record=total_record,
+            )
+    
+    @classmethod
+    async def all_filter(
+        cls, db_session: AsyncSession, payload
+    ):
+        """sumary_line
+        
+        Keyword arguments:
+        argument -- description
+        Return: return_description
+        """
+        
+        offset_page: int = (payload.page - 1 )
+        offset: int = offset_page * payload.limit
+        stmt = select(cls).where(cls.active == True)
+        stmt = filter_cars(cls=cls, stmt=stmt, payload=payload)
+        
+        # count query
+        count_query = select(func.count(1)).select_from(stmt)
+        # total record
+        total_record = (await db_session.execute(count_query)).scalar() or 0
+        # total page
+        total_page = math.ceil(total_record / payload.limit)
+
+        stmt = stmt.offset(offset).limit(payload.limit).order_by(cls.date.desc())
+        result = await db_session.execute(stmt)
+        instance = result.scalars().all()
+
+        if instance is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"Not found": "Data not found"},
+            )
+        else:
+            return PageResponse(
+                content=instance,
+                page_number=payload.page,
+                page_size=payload.limit,
                 total_pages=total_page,
                 total_record=total_record,
             )

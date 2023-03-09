@@ -81,6 +81,8 @@ class CarResponse(BaseModel):
     make: str = Field(title="", description="")
     model: str = Field(title="", description="")
     color: str = Field(title="", description="")
+    mileage: int = Field(title="", description="")
+    year: int = Field(title="", description="")
     seats: int = Field(title="", description="")
     dealer_domain: str = Field(title="", description="")
     dealer_name: str = Field(title="", description="")
@@ -98,6 +100,25 @@ class CarResponse(BaseModel):
                 "date": "some date"
             }
         }
+
+
+class CarsFilter(GenericModel, Generic[T]):
+    """Filtering"""
+    page: int = 1
+    limit: int = 10
+    price: int
+    year: int
+    mileage: int
+    gearbox: int
+    engine_size: int
+    colour: int
+    fuel_type: int
+    body_type: int
+    doors: int
+    seats: int
+    make: str | None = None
+    model: str | None = None
+
 
 class PageResponse(GenericModel, Generic[T]):
     """ The response for a pagination query. """

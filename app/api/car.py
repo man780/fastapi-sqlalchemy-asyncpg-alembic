@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from typing import List
 import xml.etree.ElementTree as ET
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.exc import SQLAlchemyError
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.core import Car, CarPicture
-from app.schemas.car import CarResponse, CarSchema, CarDetailResponse, PageResponse
+from app.schemas.car import CarResponse, CarSchema, CarDetailResponse, PageResponse, CarsFilter
 from app.utils import get_logger
 
 router = APIRouter(prefix="/v1/car", tags=["Cars"])
@@ -215,3 +216,12 @@ async def update_car(
     car = await Car.find(db_session, title)
     await car.update(db_session, **payload.dict())
     return car
+
+
+@router.post("/all/", status_code=status.HTTP_200_OK)#, response_model=List[CarResponse])
+async def all(
+    payload: CarsFilter, db_session: AsyncSession = Depends(get_db)
+):
+    """Car list with filtering"""
+    cars = await Car.all_filter(db_session=db_session, payload=payload)
+    return cars
