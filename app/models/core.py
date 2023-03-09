@@ -1,16 +1,18 @@
-import uuid
+import math
 from datetime import datetime
 from typing import List
 
 from fastapi import HTTPException, status
 from sqlalchemy import (
-    Column, String, select, Integer, Boolean, DateTime, Float, ForeignKey, PrimaryKeyConstraint
+    Column, String, select, Integer, Boolean, DateTime, Float, ForeignKey, PrimaryKeyConstraint, func
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship, Mapped
 
 from app.models.base import Base
+from app.schemas.car import PageResponse
+from app.utils import filter_cars
 
 
 class Car(Base):
@@ -23,8 +25,8 @@ class Car(Base):
     id = Column(Integer, autoincrement=True)
     title = Column(String, nullable=False)
     content = Column(String, nullable=True)
-    ad_id = Column(UUID(as_uuid=True), unique=True)
-    advert_id = Column(UUID(as_uuid=True), unique=True)
+    ad_id = Column(UUID(as_uuid=True))
+    advert_id = Column(UUID(as_uuid=True))
     url = Column(String, nullable=False)
     price = Column(Float, nullable=False, default=0)
     make = Column(String, nullable=False, default="")
@@ -39,7 +41,7 @@ class Car(Base):
     transmission = Column(String, nullable=False, default="")
     body_style = Column(String, nullable=False, default="")
     engine_size = Column(Integer, nullable=False, default=0)
-    seets = Column(Integer, nullable=False, default=0)
+    seats = Column(Integer, nullable=False, default=0)
     hero_image = Column(String, nullable=False, default="")
     date = Column(DateTime, default=datetime.now())
     car_type = Column(String, nullable=False, default="")
@@ -52,19 +54,23 @@ class Car(Base):
     active = Column(Boolean, nullable=True, default=True)
     created = Column(DateTime, default=datetime.now())
 
-    car_pictures: Mapped[List["CarPicture"]] = relationship("CarPicture", back_populates="car")
+    car_pictures: Mapped[List["CarPicture"]] = relationship("CarPicture", back_populates="car", lazy='selectin')
 
     @classmethod
-    async def find(cls, db_session: AsyncSession, title: str):
+    async def find(cls, db_session: AsyncSession, title: str = None, id: int = None):
         """
 
         :param db_session:
         :param title:
         :return:
         """
-        stmt = select(cls).where(cls.title == title)
+        if title:
+            stmt = select(cls).where(cls.title == title)
+        else:
+            stmt = select(cls).where(cls.id == id)
         result = await db_session.execute(stmt)
         instance = result.scalars().first()
+        print(instance)
         if instance is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -74,22 +80,87 @@ class Car(Base):
             return instance
 
     @classmethod
-    async def all(cls, db_session: AsyncSession):
+    async def all(
+        cls, db_session: AsyncSession,
+        limit: int = 10,
+        page: int = 1,
+        columns: str = None,
+        sort: str = None,
+        filter: str = None
+    ):
         """
         
         :param db_session:
         :return:
         """
+        offset_page: int = (page - 1 )
+        offset: int = offset_page * limit
         stmt = select(cls).where(cls.active == True)
+        stmt = stmt.offset(offset).limit(limit).order_by(cls.date.desc())
         result = await db_session.execute(stmt)
         instance = result.scalars().all()
+
+        # count query
+        count_query = select(func.count(1)).select_from(select(cls).where(cls.active == True))
+        # total record
+        total_record = (await db_session.execute(count_query)).scalar() or 0
+        # total page
+        total_page = math.ceil(total_record / limit)
+
         if instance is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"Not found": "Data not found"},
             )
         else:
-            return instance
+            return PageResponse(
+                content=instance,
+                page_number=page,
+                page_size=limit,
+                total_pages=total_page,
+                total_record=total_record,
+            )
+    
+    @classmethod
+    async def all_filter(
+        cls, db_session: AsyncSession, payload
+    ):
+        """sumary_line
+        
+        Keyword arguments:
+        argument -- description
+        Return: return_description
+        """
+        
+        offset_page: int = (payload.page - 1 )
+        offset: int = offset_page * payload.limit
+        stmt = select(cls).where(cls.active == True)
+        stmt = filter_cars(cls=cls, stmt=stmt, payload=payload)
+        
+        # count query
+        count_query = select(func.count(1)).select_from(stmt)
+        # total record
+        total_record = (await db_session.execute(count_query)).scalar() or 0
+        # total page
+        total_page = math.ceil(total_record / payload.limit)
+
+        stmt = stmt.offset(offset).limit(payload.limit).order_by(cls.date.desc())
+        result = await db_session.execute(stmt)
+        instance = result.scalars().all()
+
+        if instance is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"Not found": "Data not found"},
+            )
+        else:
+            return PageResponse(
+                content=instance,
+                page_number=payload.page,
+                page_size=payload.limit,
+                total_pages=total_page,
+                total_record=total_record,
+            )
 
 
 class CarPicture(Base):
@@ -101,7 +172,7 @@ class CarPicture(Base):
     )
     id: Mapped[int] = Column(Integer, unique=True, primary_key=True, autoincrement=True)
     car_id: Mapped[int] = Column(ForeignKey("core.car.id"), nullable=False)
-    url: str = Column(String, nullable=False, unique=True)
+    url: str = Column(String, nullable=False)
     active: bool = Column(Boolean, nullable=True, default=True)
 
     car: Mapped["Car"] = relationship("Car", back_populates="car_pictures")
